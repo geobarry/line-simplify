@@ -13,10 +13,10 @@ The Visvaling-Whyatt algorithm was implemented by Elliot Hallmark - the original
 # Getting Started
 1. Download the files
 2. Install sortedcontainers (http://www.grantjenks.com/docs/sortedcontainers/)
-3. Run the usage_examples.py script for examples of how to use each module, or follow the instructions below
+3. Run the `usage_examples.py` script for examples of how to use each module, or follow the instructions below
 
 # Usage
-Basic usage of each module is illustrated in the usage_examples.py file. All algorithms take a list of (x,y) tuples as input:
+Basic usage of each module is illustrated in the `usage_examples.py` file. All algorithms take a list of (x,y) tuples as input:
 
 ```
 input_line = [(97.1,32.1),(138.6,200.1),(138.4,367.9),(177.8,535.8),(256.7,703.8),(337.8,869.2),(420.9,1031.8),(504.0,1197.0),(628.8,1365.0)]
