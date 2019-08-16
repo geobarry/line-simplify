@@ -2,13 +2,13 @@
 A collection of line simplification algorithms in pure python code
 
 # Introduction
-This repository contains basic implementations of several line simplification algorithms, including:
+This repository contains basic implementations of several line simplification algorithms, for use in research and teaching. Currently the following algorithms are implemented:
 - Area-Preserving Segment Collapse (APSC)
 - the Ramer/Douglas-Peucker algorithm
 - the Visvalingam-Whyatt algorithm
 - Raposo's algorithm  
 
-The Visvaling-Whyatt algorithm was implemented by Elliot Hallmark - the original project can be found at https://pypi.org/project/visvalingamwyatt/. All other algorithms were implemented by Barry Kronenfeld based on their descriptions in published papers. The algorithms run fairly quickly, but are not optimized to be blazingly fast. The Ramer/Douglas-Peucker algorithm in particular is implemented in a straightforward manner and does not utilize faster techniques that have been developed.
+The Visvaling-Whyatt algorithm code is taken from Elliot Hallmark with only minor edits for consistency with other algorithms - the original project can be found at https://pypi.org/project/visvalingamwyatt/. All other algorithms were implemented by Barry Kronenfeld based on their descriptions in published papers. The algorithms run fairly quickly, but are not optimized to be blazingly fast. The Ramer/Douglas-Peucker algorithm in particular is implemented in a straightforward manner and does not utilize faster techniques that have been developed.
 
 # Getting Started
 1. Download the files
