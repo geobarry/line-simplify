@@ -1,34 +1,26 @@
-'''
-This is a very simple implementation of 
-the Douglas Peucker line simplification algorithm.
-It is not fast, nor does it include any checks to avoid self-intersection.
-
-Boring license stuff:
-=========================================
-The MIT License (MIT)
-Copyright (c) 2019 Barry Kronenfeld
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-================================
-'''
+#-------------------------------------------------------------------------------
+# Name:        Douglas Peucker
+# Description: A very simple implementation of the Ramer-Douglas-Peucker 
+#              line simplification algorithm. This does not check for 
+#              topological errors. The implementation here is not particularly
+#              fast, but it does support pre-processing to quickly simplify
+#              to any given distance tolerance or number of points. 
+#
+#              References:
+#              
+#              Urs Ramer (1972). An iterative procedure for the polygonal approximation 
+#              of plane curves. Computer Graphics and Image Processing, vol. 1, pp. 244-256.
+#
+#              David H. Douglas and Thomas K. Peucker (1973). Algorithms for the reduction of 
+#              the number of points required to represent a digitized line or its caricature.
+#              The Canadian Cartographer, vol. 10, no. 2, pp. 112-122.
+#
+# Author:      Barry Kronenfeld
+# License:     MIT License
+#-------------------------------------------------------------------------------
 
 import numpy as np
 
-#from numpy import cross,array, array_equal
-#from numpy.linalg import norm
 
 def __distance_pt_to_line(pt,line_start, line_end):
     '''calculates the perpendicular distance from the point to the line'''
@@ -87,7 +79,13 @@ def __calc_errors(pts):
     errors[-1]=maxe+1.0
     return errors
 
-def simplify_by_error_tolerance(pts, errors, tolerance):
+
+def get_errors_sortedErrors(pts):
+    errors=__calc_errors(pts)
+    sorted_errors=sorted(errors,reverse=True)
+    return errors, sorted_errors
+
+def simplify_by_distance_tolerance(pts, errors, tolerance):
     '''returns points above given tolerance'''
     r=[]
     for i in range(len(pts)):
@@ -95,47 +93,7 @@ def simplify_by_error_tolerance(pts, errors, tolerance):
             r.append(pts[i])
     return r
 
-def get_errors_sortedErrors(pts):
-    errors=__calc_errors(pts)
-    sorted_errors=sorted(errors,reverse=True)
-    return errors, sorted_errors
-
-def fast_simplify_by_numPts(pts,numpts,errors, sorted_errors):
+def simplify_by_numPts(pts,numpts,errors, sorted_errors):
     t=sorted_errors[numpts-1]
-    return simplify_by_error_tolerance(pts,errors,t)
+    return simplify_by_distance_tolerance(pts,errors,t)
 
-def simplify_by_numpts(pts,numpts):
-    '''returns simplified point list with given number of points'''
-    r=[]
-    # determine error tolerance needed to include given # points
-    errors=__calc_errors(pts)
-    sorted_errors=sorted(errors,reverse=True)
-    t=sorted_errors[numpts-1]
-    # get line
-    return simplify_by_error_tolerance(pts,errors,t)
-
-def main():
-    # test on sample line
-    sample_line=[]
-    sample_line.append([0.0,0.0])
-    sample_line.append([0.0,1.0])
-    sample_line.append([1.0,2.0])
-    sample_line.append([2.0,2.0])
-    sample_line.append([3.0,1.0])
-    sample_line.append([2.0,-2.0])
-    sample_line.append([3.0,-4.0])
-    sample_line.append([-1.0,-1.0])
-    sample_line.append([0.0,0.0])
-
-    errors=__calc_errors(sample_line)
-    for t in errors:
-        print(t)
-    simple1=simplify_by_error_tolerance(sample_line,errors,1.0)
-    print("by error:")
-    print (simple1)
-    simple3=simplify_by_numpts(sample_line,errors,3)
-    print("by number of points:")
-    print (simple3)
-
-if __name__ == '__main__':
-    main()
