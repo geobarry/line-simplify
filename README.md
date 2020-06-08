@@ -13,48 +13,19 @@ The Visvaling-Whyatt algorithm code is taken from Elliot Hallmark with only mino
 # Getting Started
 1. Download the files
 2. Install sortedcontainers (http://www.grantjenks.com/docs/sortedcontainers/)
-3. Run the `usage_examples.py` script for examples of how to use each module, or follow the instructions below
-
-# Usage
-Basic usage of each module is illustrated in the `usage_examples.py` file. All algorithms take a list of (x,y) tuples as input:
-
-```
-input_line = [(97.1,32.1),(138.6,200.1),(138.4,367.9),(177.8,535.8),(256.7,703.8),(337.8,869.2),(420.9,1031.8),(504.0,1197.0),(628.8,1365.0)]
-```
-
-To apply the APSC algorithm, first create a simplification table and then simplify to a given tolerance or target number of vertices:
-```
-import apsc
-apsc_table = apsc.simplificationTable(input_line) 
-apsc_line = apsc.simplifiedLine(apsc_table,500,-1) # simplify to 500 sq unit tolerance
-apsc_line = apsc.simplifiedLine(apsc_table,-1,5) # simplify to 5 vertices
-
-```
-
-To apply the Ramer/Douglas-Peucker algorithm, first obtain error values and then simplify to a given number of points:
-```
-# Ramer -- Douglas-Peucker:
-import douglas_peucker as dp
-errors,sorted_errors = dp.get_errors_sortedErrors(input_line) 
-rdp_line = dp.fast_simplify_by_numPts(input_line,25,errors,sorted_errors)  # simplify to 50 vertices
-
-```
-
-To apply the Visvalingam-Whyatt algorithm, first create a Simplifier object and then simplify to a given number of points or areal displacement threshold:
-```
-import visvalingam as vw 
-vw_simplifier=vw.VWSimplifier(input_line) 
-vw_line=vw_simplifier.from_number(25)
-```
-
-To apply the Raposo algorithm, specify a hexagon radius or else a target number of points:
-```
-import raposo
-raposo_line = simplify_raposo(input_line,500) # simplify using 500 unit radius hexagons
-raposo_line = raposo.simplify_to_n_points_raposo(25,input_line) # simply to n ~ 50 pts (sometimes will end up with n+1 or n-1)
-
-```
-More options are available for each function/module, refer to the documentation in the code.
+3. Install Rtree (https://www.lfd.uci.edu/~gohlke/pythonlibs/#rtree)
+   For windows users:
+   a. download the 32- or 64-bit wheel:
+        Rtree-0.8.3-cp27-cp27m-win32.whl
+        Rtree-0.8.3-cp27-cp27m-win_amd64.whl
+   b. open a command-prompt as an administrator
+   c. use 'cd' to navigate to the python scripts folder
+   d. uninstall any previous version, e.g. "pip uninstall rtree" 
+   e. install from the wheel, e.g. "pip install Rtree-0.8.3-cp27-cp27m-win32.whl"
+4. Run the 'example_usage.py' script for examples of how to use each line simplification algorithm.
+   Run the 'example_visualize.py' script to view an example of the APSC algorithm in action.
+   Run the 'example_visualize_tree.py' script to view the tree-structure of the APSC 
+      simplification table
 
 # References
 Descriptions of each line simplification algorithm are given in the following papers:
