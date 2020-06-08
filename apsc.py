@@ -463,7 +463,8 @@ def displacementArea(simp_table,n):
     """
     disp_areas=simp_table[2]
     orig_n = int(int(len(disp_areas)+3)/2)
-    index_of_last_added_point = orig_n + (orig_n-n)
+    index_of_last_added_point = orig_n + (orig_n-n-1)
+    
     return disp_areas[index_of_last_added_point]
 
 def simplificationTable(pts, p_func=__placement_AP_EAmin, m_func=__sideshift_area, do_topo_check = False, other_pt_lists = None):
