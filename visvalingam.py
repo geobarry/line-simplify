@@ -176,7 +176,7 @@ class VWSimplifier(object):
         return real_areas
 
     def from_threshold(self,threshold):
-        return self.pts[self.thresholds >= threshold].tolist()
+        return self.pts[self.thresholds >= threshold]
 
     def from_number(self,n):
         thresholds = self.ordered_thresholds
@@ -184,13 +184,13 @@ class VWSimplifier(object):
           threshold = thresholds[int(n)]
         except IndexError:
           return self.pts
-        return self.pts[self.thresholds > threshold].tolist()
+        return self.pts[self.thresholds > threshold]
 
     def from_ratio(self,r):
         if r<=0 or r>1:
           raise ValueError("Ratio must be 0<r<=1")
         else:
-          return self.from_number(r*len(self.thresholds)).tolist()
+          return self.from_number(r*len(self.thresholds))
 
 class WKTSimplifier(VWSimplifier):
       '''VWSimplifier that returns strings suitable for WKT

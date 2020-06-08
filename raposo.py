@@ -1,36 +1,18 @@
-'''
-Implements the Raposo line simplification
-algorithm, in which consecutive vertices in hexagonal 
-grid cells are collapsed to a single
-point. For details on the algorithm, see
-
-Raposo (2013) Scale-specific automated line simplification by
-vertex clustering on a hexagonal tessellation. CAGIS 40(5):427-443
-
-Note: The 'untwisting' algorithm to remove self-intersections
-described in the above paper has not been implemented
-
-Boring license stuff:
-=========================================
-The MIT License (MIT)
-Copyright (c) 2019 Barry Kronenfeld
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-================================
-'''
+#-------------------------------------------------------------------------------
+# Name:        raposo (line simplification algorithm)
+# Purpose:     Implements the Raposo line simplification algorithm, in which
+#              consecutive vertices in hexagonal grids are collapsed to a single
+#              point. For details on the algorithm, see
+#
+#              Raposo (2013) Scale-specific automated line simplification by
+#              vertex clustering on a hexagonal tessellation. CAGIS 40(5):427-443
+#
+#              Note: The 'untwisting' algorithm to remove self-intersections
+#                 has not been implemented yet
+# Author:      Barry Kronenfeld
+# Created:     23/12/2017
+# License:     MIT License
+#-------------------------------------------------------------------------------
 
 class cHexGrid():
     '''Represents a hexagonal grid with the following properties:
@@ -106,17 +88,31 @@ def quant_mid(points, startid, nextstartid):
     p2=points[nextstartid-1]
     return ((p1[0]+p2[0])/2.0,(p1[1]+p2[1])/2.0)
 
-def simplify_raposo(points,hexradius,quant_method=quant_avg, keep_first_last=True):
-    '''Constructs a simplified line using the hexagon clustering method described in:
+def simplify_raposo(points,hexradius,quant_function=quant_avg, keep_first_last=True):
+    """
+    Constructs a simplified line using the hexagon clustering method 
+        described in Raposo (2013)
 
-        PARAMETERS
-        points: list/set of coordinate pairs
-        ............e.g. [(16.3, 47.1), (-256.5, 132.5), (-780.5, 191.4), (-1791.7, 213.2)]
-        hexradius: length of the radius/sides of hexagons in grid
-        ............to remove more vertices, use larger radius
-        quant_method: quantization function on consecutive vertices in the same hexagon
-        ............built-in options: quant_avg, quant_mid
-        keep_first_last: if true, first and last points from original line will be retained.'''
+    Parameters
+    ----------
+    points : list of (x,y) tuples
+        The input line.
+    hexradius : float
+        The length of the radius/sides of hexagons within which 
+        points will be aggregated. A larger radius results in greater 
+        simplification.
+    quant_function : function, optional
+        The function used to find a representative point within a hexagon. 
+        The default is quant_avg.
+    keep_first_last : boolean, optional
+        If true, the first and last points will be retained. 
+        The default is True.
+    Returns
+    -------
+    simplified_line : list of (x,y) tuples
+        The simplified line.
+
+    """
 
     # determine bounds of line and create hexagon grid
     x=[pt[0] for pt in points]
@@ -133,26 +129,46 @@ def simplify_raposo(points,hexradius,quant_method=quant_avg, keep_first_last=Tru
     startid=0
     for i in range(len(points)):
         if hexRC[i] != hexRC[startid]:
-            simplified_line.append(quant_method(points,startid,i))
+            simplified_line.append(quant_function(points,startid,i))
             startid=i
-    simplified_line.append(quant_method(points,startid,len(points)))
+    simplified_line.append(quant_function(points,startid,len(points)))
     # add last point (if keep_first_last)
     if keep_first_last and hexRC[-2]==hexRC[-1]:
         simplified_line.append(points[-1])
     # return result
     return simplified_line
 
-def simplify_to_n_points_raposo(n,points,max_tries=25,quant_method=quant_avg, keep_first_last=True):
-    '''Attempts to simplify the input line to exactly n vertices using
+def simplify_to_n_points_raposo(points,n,max_tries=25,quant_function=quant_avg, keep_first_last=True):
+    """
+    Attempts to simplify the input line to n vertices using
        the Raposo line simplification algorithm, by searching for a
        hexagon radius that will produce the desired number of points.
 
-       PARAMETERS:
-        n: target number of points in simplified line
-        max_tries: maximum number of iterations to try before giving up
-        other parameters are the same as function simplify_raposo'''
+    Parameters
+    ----------
+    points : list of (x,y) tuples
+        The original line.
+    n : integer
+        The target number of points for simplified line.
+    max_tries : integer, optional
+        The maximum number of hexagon sizes to try before stopping. 
+        Each successive try will get closer to the target number of points, 
+        but the target may never be reached exactly. The default is 25.
+    quant_function : function, optional
+        The function used to find a representative point within a hexagon. 
+        The default is quant_avg.
+    keep_first_last : boolean, optional
+        If true, the first and last points will be retained. 
+        The default is True.
 
-    # determine bounds of line
+    Returns
+    -------
+    simplified_line : list of (x,y) tuples
+        The simplified line.
+
+    """
+    
+    # determine x/y ranges of line coordinates
     x=[pt[0] for pt in points]
     y=[pt[1] for pt in points]
     dx = max(x) - min(x)
@@ -164,28 +180,25 @@ def simplify_to_n_points_raposo(n,points,max_tries=25,quant_method=quant_avg, ke
     # pivot radius is average of low and high radius
     pivot = (low_radius + high_radius)/2.0
     # try simplifying line with pivot radius and calc difference between num vertices & target
-    simplified = simplify_raposo(points,pivot,quant_method,keep_first_last)
-    dn=abs(len(simplified)-n) # difference between target and current n
+    simplified_line = simplify_raposo(points,pivot,quant_function,keep_first_last)
+    dn=abs(len(simplified_line)-n) # difference between target and current n
     numtries=0
     # loop until we get the right number of points or make enough tries
     while dn > 0 and numtries <= max_tries:
         # move pivot
-        if len(simplified) < n: # too few points, need to decrease radius
+        if len(simplified_line) < n: # too few points, need to decrease radius
             high_radius=pivot
         else: # too many points, need to increase radius
             low_radius=pivot
         pivot = (low_radius + high_radius)/2.0
         # simplify again
-        simplified = simplify_raposo(points,pivot,quant_method,keep_first_last)
+        simplified_line = simplify_raposo(points,pivot,quant_function,keep_first_last)
         # see if we got closer
-        new_dn = abs(len(simplified)-n)
+        new_dn = abs(len(simplified_line)-n)
         if new_dn < dn: # if so, reset try count
             numtries=0
         else: # otherwise, increase try count
             numtries +=1
         # reset dn
         dn=new_dn
-    return simplified
-
-if __name__ == '__main__':
-    pass
+    return simplified_line

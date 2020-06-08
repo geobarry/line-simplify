@@ -1,42 +1,28 @@
-'''
-Implements the area preserving segment collapse (APSC) line simplification
-algorithm, which works by replacing 2-vertex line segments with a single 
-vertex placed such that area as preserved on either side of the original
-polyline and areal displacement is minimized under the area preservation 
-constraint.
+#-------------------------------------------------------------------------------
+# This code implements the area preserving segment collapse (APSC) algorithm, 
+# which simplifies a geographic line feature while preserving area and 
+# minimizing areal displacement. The APSC algorithm is described in detail in:
+#
+# Kronenfeld, Stanislawski, Buttenfield and Brockmeyer (2020). Simplification
+# of polylines by segment collapse: minimizing areal displacement while 
+# preserving area. International Journal of Cartography, vol. 6, issue 1, 
+# https://doi.org/10.1080/23729333.2019.1631535
+#
+# Code by Barry Kronenfeld (last updated June 2020)
+# MIT License
+#-------------------------------------------------------------------------------
 
-For details of the APSC algorithm, see:
-    
-Kronenfeld, Stanislawski, Buttenfield & Brockmeyer. Simplification of
-polylines by segment collapse: minimizing areal displacement while preserving
-area. International Journal of Geography, published online in Aug. 2019.
-https://doi.org/10.1080/23729333.2019.1631535
-    
-Boring license stuff:
-=========================================
-The MIT License (MIT)
-Copyright (c) 2019 Barry Kronenfeld
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-================================
-'''
+"""
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""
 
 import sys
-from geom_utils import *
-from line_intersection import *
+import geom_utils as g
+import line_intersection as lineint
 
 
 try:
@@ -46,8 +32,6 @@ except ImportError:
                 Install it from https://pypi.python.org/pypi/sortedcontainers
                 or get pip (https://pip.pypa.io/en/stable/installing/) and run the following from a command prompt:
                       pip install sortedcontainers""")
-
-
 try:
     from rtree import index
 except ImportError:
@@ -64,15 +48,16 @@ except ImportError:
                 # 6) install by entering:
                 #       pip install Rtree-0.8.3-cp27-cp27m-win32.whl""")
 
-def __packUnpackVtreeExample():
+def __packUnpackSimplificationTableExample():
     # This function is not used anywhere
     # it merely provides examples to illustrate the structure of
-    # the data in the simplification table (vtree)
+    # the data in the APSC simplification table
     messages=[]
-    messages.append('#The vertex "tree" is a list of lists,best conceptualized as a table with 9 columns.')
-    messages.append('i.e. vtree= [ID,XY,error,parent,LC,RC,LS,RS,current]')
-    messages.append('#Each inner list contains a column of data. The following code obtaines these lists:')
-    messages.append('ID,XY,error,parent,LC,RC,LS,RS,currents=vtree[0],vtree[1],vtree[2],vtree[3],vtree[4],vtree[5],vtree[6],vtree[7],vtree[8]')
+    messages.append('#The simplification "table" is a list of lists,best conceptualized as a table with 9 columns.')
+    messages.append('i.e. s_tab= [ID,XY,error,parent,LC,RC,LS,RS,current]')
+    messages.append('#Each inner list contains a column of data with 2n-3 elements.')
+    messages.append('The following code obtaines these lists:')
+    messages.append('ID,XY,error,parent,LC,RC,LS,RS,currents=s_tab[0],s_tab[1],s_tab[2],s_tab[3],s_tab[4],s_tab[5],s_tab[6],s_tab[7],s_tab[8]')
     messages.append('#The ID column contains the ID of each vertex')
     messages.append("#This column isn't really necessary, as it's always the same as the list index. So, for example, the following is always true:")
     messages.append('    ID[0]==0')
@@ -96,13 +81,6 @@ def __packUnpackVtreeExample():
     messages.append('# after tree construction has finished, if every internal segment (excluding the two end segments) was able to be collapsed then only three vertices will be current.')
     return messages
 
-##def __semiDisplacement(A,B,C,D,E):
-##    """Returns the semi-displacement area from ABCD to ACE,
-##    assuming that E is placed on CD."""
-##    # get semi-displacement area
-##    crosspt=intersection(A,E,B,C)
-##    a=abs(area([A,B,crosspt]))
-##    return a
 
 def __sideshift_area(pA,pB,pC,pD,pE,overlap_endpt):
     """Returns the sideshift displacement area from ABCD to ACE.
@@ -114,41 +92,41 @@ def __sideshift_area(pA,pB,pC,pD,pE,overlap_endpt):
                 other  E is not placed on AB or CD)
        Returns:
             Total sideshift displacement area between ABCD and AED"""
-    if intersect(pA,pB,pC,pD):  # original line self-intersects
-        x=intersection(pA,pB,pC,pD)
-        return area([x,pC,pB],True) + area([x,pA,pE,pD],True)
+    if g.intersect(pA,pB,pC,pD):  # original line self-intersects
+        x=g.intersection(pA,pB,pC,pD)
+        return g.area([x,pC,pB],True) + g.area([x,pA,pE,pD],True)
     elif overlap_endpt==0: # E is on line through AB
-        if intersect(pB,pC,pE,pD):
-            x=intersection(pB,pC,pE,pD)
-            return area([pB,pE,x],True) + area([x,pD,pC],True)
+        if g.intersect(pB,pC,pE,pD):
+            x=g.intersection(pB,pC,pE,pD)
+            return g.area([pB,pE,x],True) + g.area([x,pD,pC],True)
         else:
-            return area([pD,pC,pB,pE],True)
+            return g.area([pD,pC,pB,pE],True)
     elif overlap_endpt==1:  # E is on line through CD
-        if intersect(pC,pB,pE,pA):
-            x=intersection(pC,pB,pE,pA)
-            return area([pC,pE,x],True) + area([x,pA,pB],True)
+        if g.intersect(pC,pB,pE,pA):
+            x=g.intersection(pC,pB,pE,pA)
+            return g.area([pC,pE,x],True) + g.area([x,pA,pB],True)
         else:
-            return area([pA,pB,pC,pE],True)
+            return g.area([pA,pB,pC,pE],True)
     else: # possibilities: (1) AE^BC, (2) AE^BC & ED^BC, (3) AE^CD, (4) DE^AB, (5) DE^BC, (6) no intersections
         # check if AE intersects BC or CD
-        if intersect(pA,pE,pB,pC):   # AE intersects BC
-            x1=intersection(pA,pE,pB,pC)
-            if intersect([pD, pE, pB, pC]):  # (2)
-                x2=intersection(pD,pE,pB,pC)
-                return area([pA,x1,pB],True)+area([x1,pE,x2],True)+area([x2,pD,pC],True)
+        if g.intersect(pA,pE,pB,pC):   # AE intersects BC
+            x1=g.intersection(pA,pE,pB,pC)
+            if g.intersect([pD, pE, pB, pC]):  # (2)
+                x2=g.intersection(pD,pE,pB,pC)
+                return g.area([pA,x1,pB],True)+g.area([x1,pE,x2],True)+g.area([x2,pD,pC],True)
             else:                             # (1)
-                return area([pA,x1,pB],True) + area([x1,pE,pC,pD],True)
-        elif intersect(pA,pE,pC,pD): # AE intersects CD  (3)
-            x=intersection(pA,pE,pC,pD)
-            return area([pA,x,pC,pB],True) + area([x,pE,pD],True)
-        elif intersect(pD,pE,pA,pB): # DE intersects AB  (4)
-            x=intersection(pD,pE,pA,pB)
-            return area([pA,pE,x],True) + area([x,pD,pC,pB],True)
-        elif intersect(pD,pE,pB,pC): # DE intersects BC  (5)
-            x=intersection(pD,pE,pB,pC)
-            return area([pA,pE,x,pB],True) + area([x,pD,pC],True)
+                return g.area([pA,x1,pB],True) + g.area([x1,pE,pC,pD],True)
+        elif g.intersect(pA,pE,pC,pD): # AE intersects CD  (3)
+            x=g.intersection(pA,pE,pC,pD)
+            return g.area([pA,x,pC,pB],True) + g.area([x,pE,pD],True)
+        elif g.intersect(pD,pE,pA,pB): # DE intersects AB  (4)
+            x=g.intersection(pD,pE,pA,pB)
+            return g.area([pA,pE,x],True) + g.area([x,pD,pC,pB],True)
+        elif g.intersect(pD,pE,pB,pC): # DE intersects BC  (5)
+            x=g.intersection(pD,pE,pB,pC)
+            return g.area([pA,pE,x,pB],True) + g.area([x,pD,pC],True)
         else: # no intersection (6)
-            return area([pA,pE,pD,pC,pB],True)
+            return g.area([pA,pE,pD,pC,pB],True)
 
 def __placement_AP_EAmin(pA,pB,pC,pD, m_func):
     """Determines point E to replace BC that minimizes effective area of displacement while preserving area on each side.
@@ -169,15 +147,15 @@ def __placement_AP_EAmin(pA,pB,pC,pD, m_func):
     # determine situation
     if S==None:
         return None, -1, -1
-    elif distance_pt_line(pA,S[0],S[1])==0:
+    elif g.distance_pt_line(pA,S[0],S[1])==0:
         return None, -1, -1
     else:
         # default: intersect S with CD
         C2=pC
         D2=pD
         overlap_endpt=1
-        if rightSide(pA,pD,pB)==rightSide(pA,pD,pC):
-            B_further_from_AD = distance_pt_line(pB,pA,pD) - distance_pt_line(pC,pA,pD)
+        if g.X_Right_of_AB(pA,pD,pB)==g.X_Right_of_AB(pA,pD,pC):
+            B_further_from_AD = g.distance_pt_line(pB,pA,pD) - g.distance_pt_line(pC,pA,pD)
             if B_further_from_AD > 0: # intersect S with AB
                 D2=pA
                 C2=pB
@@ -187,12 +165,12 @@ def __placement_AP_EAmin(pA,pB,pC,pD, m_func):
 ##                C2=[(pB[0]+pC[0])/2,(pB[1]+pC[1])/2]
 ##                overlap_endpt=-1
         else:
-            if rightSide(pA,pD,pB) == rightSide(pA,pD,S): # intersect S with AB
+            if g.X_Right_of_AB(pA,pD,pB) == g.X_Right_of_AB(pA,pD,S): # intersect S with AB
                 D2=pA
                 C2=pB
                 overlap_endpt=0
         # calculate intersection
-        pE=intersection(D2,C2,S[0],S[1])
+        pE=g.intersection(D2,C2,S[0],S[1])
         # handle case of colinear points
         if pE[0]==None:
             pE=pC
@@ -218,8 +196,6 @@ def __causesSelfIntersection(A,B,C,D,pE, overlap_endpt,LS_A, vtree, idx):
     RS=vtree[7]
     # get points
     pA, pB, pC, pD=(XY[A],XY[B],XY[C],XY[D])
-    # get smallest line so far from vtree
-    lineSoFar = __smallestLine(vtree)
     # create segments to check
     newSegs=[(pA, pE),(pE, pD)]
     # get intersecting segments
@@ -232,7 +208,7 @@ def __causesSelfIntersection(A,B,C,D,pE, overlap_endpt,LS_A, vtree, idx):
                 # get segment vertices
                 int_seg =(XY[int_seg_ID],XY[RS[int_seg_ID]])
                 # look for intersection
-                ints=segmentIntersection(newSeg,int_seg)
+                ints=lineint.segmentIntersection(newSeg,int_seg)
                 if ints != None: # we might have an intersection
                     # see if we are looking at segment prior to A or just after D
                     if RS[int_seg_ID]==A or int_seg_ID==D:
@@ -468,6 +444,28 @@ def __segment_bounding_box_generator(pts, other_pt_lists = None):
                 cur_id +=1
 
 
+def displacementArea(simp_table,n):
+    """
+    Extracts the last (largest) diplacement area associated with simplification to n points
+
+    Parameters
+    ----------
+    simp_table : list
+        derived from the simplificationTable function.
+    n : integer
+        number of points in simplified line
+    
+    Returns
+    -------
+    disp_area : float
+        the maximum displacement area associated with any single collapse event.
+
+    """
+    disp_areas=simp_table[2]
+    orig_n = int(int(len(disp_areas)+3)/2)
+    index_of_last_added_point = orig_n + (orig_n-n)
+    return disp_areas[index_of_last_added_point]
+
 def simplificationTable(pts, p_func=__placement_AP_EAmin, m_func=__sideshift_area, do_topo_check = False, other_pt_lists = None):
     """Collapses segments and builds simplification tree.
     from which simplified versions of line can be constructed.
@@ -530,17 +528,17 @@ def simplificationTable(pts, p_func=__placement_AP_EAmin, m_func=__sideshift_are
     return vtree
 
 
-def simplifiedLine(vtree,max_disp=-1, min_pts=-1):
+def simplifiedLine(simp_table,max_disp=-1, min_pts=-1):
     """ Returns a list of (x,y) tuples representing vertices of simplified line.
     Args:
-        vtree:      vertex tree derived from __buildVertexTree function
+        simp_table: simplification table derived from simplificationTable function
         max_disp:   maximum allowable displacement at each step
         min_pts:    output must include at least this many points
     (Either neither max_disp nor min_pts are supplied...
     """
     # vtree lists:
     # id, xy, error, parent, LC, RC, LS, RS, current
-    ID,XY,error,parent,LC,RC,LS,RS,currents=vtree[0],vtree[1],vtree[2],vtree[3],vtree[4],vtree[5],vtree[6],vtree[7],vtree[8]
+    ID,XY,error,parent,LC,RC,LS,RS,currents=simp_table[0],simp_table[1],simp_table[2],simp_table[3],simp_table[4],simp_table[5],simp_table[6],simp_table[7],simp_table[8]
     # determine original number of points,
     # maximum ID to allow based on displacement error criterion
     max_ID=len(ID)-1
