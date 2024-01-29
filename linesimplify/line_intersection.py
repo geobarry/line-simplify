@@ -6,7 +6,7 @@
 # Licence:     MIT License
 #-------------------------------------------------------------------------------
 
-import geom_utils
+from .geom_utils import isMonotonic,distance_pts,triangle_area,ptsMonotonic,area
 
 
 def __isLeft(p0,p1,p2):
@@ -28,13 +28,13 @@ def __isLeft(p0,p1,p2):
 def __overlaps(a1,a2,b1,b2):
     """Returns True if ranges of a and b overlap
        Returns False otherwise"""
-    if geom_utils.isMonotonic(a1,b1,a2):
+    if isMonotonic(a1,b1,a2):
         return True
-    elif geom_utils.isMonotonic(a1,b2,a2):
+    elif isMonotonic(a1,b2,a2):
         return True
-    elif geom_utils.isMonotonic(b1,a1,b2):
+    elif isMonotonic(b1,a1,b2):
         return True
-    elif geom_utils.isMonotonic(b1,a2,b2):
+    elif isMonotonic(b1,a2,b2):
         return True
     else:
         return False
@@ -64,16 +64,16 @@ def points_sorted(p):
     else:
         # find furthest pair of points
         fpair=(0,1)
-        fdist=geom_utils.distance_pts(p[0],p[1])
+        fdist=distance_pts(p[0],p[1])
         for i in range(len(p)):
             for j in range(i+1,len(p)):
-                d=geom_utils.distance_pts(p[i],p[j])
+                d=distance_pts(p[i],p[j])
                 if d > fdist:
                     fdist=d
                     fpair=(i,j)
         # sort points along line from first to last
         start=p[fpair[0]]
-        p_dist=[(x,geom_utils.distance_pts(x,start)) for x in p]
+        p_dist=[(x,distance_pts(x,start)) for x in p]
         p_dist=sorted(p_dist,key = lambda x:x[1])
         return [x[0] for x in p_dist]        
         
@@ -85,13 +85,13 @@ def __segmentsOverlap(s1,s2,t):
     c=s2[0]
     d=s2[1]
     # triangle areas must be close to zero to overlap
-    if abs(geom_utils.triangle_area(a,b,c)/geom_utils.distance_pts(a,b)) > t:
+    if abs(triangle_area(a,b,c)/distance_pts(a,b)) > t:
         return None
-    if abs(geom_utils.triangle_area(a,b,d)/geom_utils.distance_pts(c,d)) > t:
+    if abs(triangle_area(a,b,d)/distance_pts(c,d)) > t:
         return None
-    if abs(geom_utils.triangle_area(a,c,d)/geom_utils.distance_pts(a,b)) > t:
+    if abs(triangle_area(a,c,d)/distance_pts(a,b)) > t:
         return None
-    if abs(geom_utils.triangle_area(b,c,d)/geom_utils.distance_pts(c,d)) > t:
+    if abs(triangle_area(b,c,d)/distance_pts(c,d)) > t:
         return None
     # x- and y-coordinates must be monotonic to overlap
     if not __overlaps(a[0],b[0],c[0],d[0]):
@@ -99,13 +99,13 @@ def __segmentsOverlap(s1,s2,t):
     if not __overlaps(a[1],b[1],c[1],d[1]):
         return None
     # if vertices are identical, there may not be overlap
-    if a==c and geom_utils.ptsMonotonic(b,a,d):
+    if a==c and ptsMonotonic(b,a,d):
         return None
-    if a==d and geom_utils.ptsMonotonic(b,a,c):
+    if a==d and ptsMonotonic(b,a,c):
         return None
-    if b==c and geom_utils.ptsMonotonic(a,b,d):
+    if b==c and ptsMonotonic(a,b,d):
         return None
-    if b==d and geom_utils.ptsMonotonic(a,d,c):
+    if b==d and ptsMonotonic(a,d,c):
         return None
     # can't sort just by x coordinates
     sorted_pts = points_sorted([a,b,c,d])
@@ -146,10 +146,10 @@ def segmentsIntersect_triangleMethod(seg1,seg2):
     b = seg1[1]
     c = seg2[0]
     d = seg2[1]
-    ABC = geom_utils.triangle_area(a,b,c)
-    ABD = geom_utils.triangle_area(a,b,d)
-    ACD = geom_utils.triangle_area(a,c,d)
-    BCD = geom_utils.triangle_area(b,c,d)
+    ABC = triangle_area(a,b,c)
+    ABD = triangle_area(a,b,d)
+    ACD = triangle_area(a,c,d)
+    BCD = triangle_area(b,c,d)
     ABC_ABD_opposite = (ABC >= 0) != (ABD >= 0)
     ACD_BCD_opposite = (ACD >= 0) != (BCD >= 0)
     if ABC_ABD_opposite and ACD_BCD_opposite:
@@ -289,13 +289,13 @@ def segmentIntersection(seg1, seg2):
                     return None
         else: # first line vertical
             # test if intersection can possibly be on vertical line
-            if geom_utils.isMonotonic(xs2,xs1,xe2):
+            if isMonotonic(xs2,xs1,xe2):
                 # determine y-coordinate of intersection
                 b2=(ye2-ys2)/(xe2-xs2)
                 a2=ys2-b2*xs2
                 py=a2+b2*xs1
                 # test if intersection is on vertical line
-                if geom_utils.isMonotonic(ys1,py,ye1):
+                if isMonotonic(ys1,py,ye1):
                     return [(xs1,py)]
                 else:
                     return None
@@ -303,13 +303,13 @@ def segmentIntersection(seg1, seg2):
                 return None
     elif xs2==xe2: # second line vertical
         # test if intersection can possibly be on vertical line
-        if geom_utils.isMonotonic(xs1,xs2,xe1):
+        if isMonotonic(xs1,xs2,xe1):
             # determine y-coordinate of intersection
             b1=(ye1-ys1)/(xe1-xs1)
             a1=ys1-b1*xs1
             py=a1+b1*xs2
             # test if intersection is on vertical line
-            if geom_utils.isMonotonic(ys2,py,ye2):
+            if isMonotonic(ys2,py,ye2):
                 return [(xs2,py)]
             else:
                 return None
@@ -338,7 +338,7 @@ def segmentIntersection(seg1, seg2):
             px=-(a1-a2)/(b1-b2)
             py=a1+b1*px
             # test if it is on both lines
-            if geom_utils.isMonotonic(xs1,px,xe1) and geom_utils.isMonotonic(xs2, px, xe2):
+            if isMonotonic(xs1,px,xe1) and isMonotonic(xs2, px, xe2):
                 return [(px,py)]
             else:
                 return None
@@ -359,16 +359,16 @@ def __adjacent_segment_intersections(polyline):
     # loop through vertex triplets
     for i in range(len(polyline)-2):
         # test for collinearity
-        a=geom_utils.area(polyline[i:i+3])
+        a=area(polyline[i:i+3])
         if a==0:
             # test for sequence
-            if geom_utils.isMonotonic(pl[i][0],pl[i+2][0],pl[i+1][0]):
-                if geom_utils.isMonotonic(pl[i][1],pl[i+2][1],pl[i+1][1]):
+            if isMonotonic(pl[i][0],pl[i+2][0],pl[i+1][0]):
+                if isMonotonic(pl[i][1],pl[i+2][1],pl[i+1][1]):
                     # 3rd point is between 1st and 2nd
                     intPairs.append([i,i+1])
                     intPts.append([pl[i+1],pl[i+2]])
-            if geom_utils.isMonotonic(pl[i+1][0],pl[i][0],pl[i+2][0]):
-                if geom_utils.isMonotonic(pl[i+1][1],pl[i][1],pl[i+2][1]):
+            if isMonotonic(pl[i+1][0],pl[i][0],pl[i+2][0]):
+                if isMonotonic(pl[i+1][1],pl[i][1],pl[i+2][1]):
                     # 1st point is between 2nd and 3rd
                     intPairs.append([i,i+1])
                     intPts.append([pl[i],pl[i+1]])

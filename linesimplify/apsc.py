@@ -21,9 +21,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 """
 
 import sys
-import geom_utils as g
-import line_intersection as lineint
 
+from . import line_intersection as lineint
+
+# import linesimplify.line_intersection as lineint
+from . import geom_utils as g
 
 try:
     import sortedcontainers as __sc

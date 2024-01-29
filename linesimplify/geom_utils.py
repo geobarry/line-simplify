@@ -4,7 +4,7 @@
 # License:     MIT License
 #-------------------------------------------------------------------------------
 
-import data_utils as d
+from .data_utils import min_id,sequence_info
 import math as __m
 import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
@@ -39,7 +39,7 @@ def clockwise_sequence(edges):
         # get closest to origin
         if len(v2set) != 1:
             dist_list = [distance_pts(origin,v2) for v2 in v2list]
-            min_id = d.min_id(dist_list)
+            min_id = min_id(dist_list)
 #            min_id, min_d = min(enumerate(dist_list), key=itemgetter(1))
             fulcrum = v2list[min_id]
         else:
@@ -70,7 +70,7 @@ def clockwise_sequence(edges):
     # work on legitimate edges
     n = len(legitimate_edge_ids)
     bearings = [-1*bearing(edge[0],edge[1]) for edge in legitimate_edges]   
-    seq,ranks = d.sequence_info(bearings)
+    seq,ranks = sequence_info(bearings)
     r=0
     # obtain and handle sets of ties
     while r < n-1:
